@@ -28,6 +28,7 @@ define('RFC_SLUG', 'rocketfuel-cache');
 
 require_once RFC_PATH . 'includes/class-rfc-autoloader.php';
 RFC_Autoloader::init();
+require_once RFC_PATH . 'includes/class-rfc-helpers.php';
 
 register_activation_hook(__FILE__, function () {
     try {
