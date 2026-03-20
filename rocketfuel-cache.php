@@ -29,9 +29,35 @@ define('RFC_SLUG', 'rocketfuel-cache');
 require_once RFC_PATH . 'includes/class-rfc-autoloader.php';
 RFC_Autoloader::init();
 
-register_activation_hook(__FILE__, ['RFC_Activator', 'run']);
-register_deactivation_hook(__FILE__, ['RFC_Deactivator', 'run']);
+register_activation_hook(__FILE__, function () {
+    try {
+        RFC_Activator::run();
+    } catch (\Throwable $e) {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('RocketFuel activation error: ' . $e->getMessage());
+        }
+    }
+});
+
+register_deactivation_hook(__FILE__, function () {
+    try {
+        RFC_Deactivator::run();
+    } catch (\Throwable $e) {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('RocketFuel deactivation error: ' . $e->getMessage());
+        }
+    }
+});
 
 add_action('plugins_loaded', function () {
-    RFC_Engine::ignite();
+    try {
+        RFC_Engine::ignite();
+    } catch (\Throwable $e) {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('RocketFuel boot error: ' . $e->getMessage());
+        }
+        add_action('admin_notices', function () use ($e) {
+            echo '<div class="notice notice-error"><p>RocketFuel Cache encountered an error: ' . esc_html($e->getMessage()) . '</p></div>';
+        });
+    }
 });
