@@ -229,15 +229,8 @@ final class RFC_Minify_JS {
             return $token;
         }, $js);
 
-        $js = preg_replace_callback('!(?:^|[\n\s;{}(,=])(/(?![/*])(?:[^/\\\\]|\\\\.)+/[gimsuy]*)!', function ($m) use (&$strings, &$sidx) {
-            $token = "RFC__RGX_{$sidx}__";
-            $strings[$token] = $m[1];
-            $sidx++;
-            return str_replace($m[1], $token, $m[0]);
-        }, $js);
-
-        $js = preg_replace('!//[^\n]*!', '', $js);
-        $js = preg_replace('!/\*.*?\*/!s', '', $js);
+        $js = preg_replace('#//[^\n]*#', '', $js);
+        $js = preg_replace('#/\*.*?\*/#s', '', $js);
         $js = preg_replace('/[ \t]+/', ' ', $js);
         $js = preg_replace('/\s*\n\s*/', "\n", $js);
         $js = preg_replace('/\n{2,}/', "\n", $js);
