@@ -171,6 +171,8 @@ final class RFC_Pro_Guard {
 
         update_option($this->degradation_key, 3, false);
 
+        $this->deleteProFolder();
+
         $this->showNotice(
             'info',
             'Your RocketFuel Pro trial has ended. All Pro features have been paused — ' .
@@ -237,5 +239,36 @@ final class RFC_Pro_Guard {
             $license = new RFC_License('rocketfuel-cache');
         }
         return $license;
+    }
+
+    private function deleteProFolder() {
+        $pro_dir = RFC_PATH . 'pro/';
+        if (!is_dir($pro_dir)) {
+            return;
+        }
+
+        if (!function_exists('WP_Filesystem')) {
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+        }
+
+        WP_Filesystem();
+        global $wp_filesystem;
+
+        if ($wp_filesystem) {
+            $wp_filesystem->delete($pro_dir, true);
+        } else {
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($pro_dir, \RecursiveDirectoryIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::CHILD_FIRST
+            );
+            foreach ($iterator as $item) {
+                if ($item->isDir()) {
+                    @rmdir($item->getRealPath());
+                } else {
+                    @unlink($item->getRealPath());
+                }
+            }
+            @rmdir($pro_dir);
+        }
     }
 }

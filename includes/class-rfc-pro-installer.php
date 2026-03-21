@@ -272,11 +272,21 @@ final class RFC_Pro_Installer {
 
         if (!is_wp_error($response)) {
             $body = json_decode(wp_remote_retrieve_body($response), true);
-            if (!empty($body['trial_ends_at'])) {
-                update_option('rfc_trial_ends_at', $body['trial_ends_at']);
+            $data = $body['data'] ?? $body;
+            if (!empty($data['trial_ends_at'])) {
+                update_option('rfc_trial_ends_at', $data['trial_ends_at']);
             }
-            if (!empty($body['download_url'])) {
-                $this->downloadAndInstall($body['download_url']);
+            if (!empty($data['license_key'])) {
+                update_option('rfc_license_key', $data['license_key']);
+            }
+            $download_url = $data['download_url'] ?? ($body['download_url'] ?? '');
+            if (!empty($download_url)) {
+                $install = $this->downloadAndInstall($download_url);
+                if (is_wp_error($install)) {
+                    if (defined('WP_DEBUG') && WP_DEBUG) {
+                        error_log('RocketFuel Pro download failed: ' . $install->get_error_message());
+                    }
+                }
             }
         }
 
