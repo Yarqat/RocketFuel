@@ -11,6 +11,8 @@ final class RFC_Pro_Installer {
 
         add_action('wp_ajax_rfc_install_pro', [$this, 'ajaxInstallPro']);
         add_action('wp_ajax_rfc_remove_pro', [$this, 'ajaxRemovePro']);
+        add_action('wp_ajax_rfc_activate_trial', [$this, 'ajaxStartTrial']);
+        add_action('wp_ajax_rfc_activate_license', [$this, 'ajaxActivateLicense']);
     }
 
     public function downloadAndInstall($download_url) {
@@ -188,7 +190,7 @@ final class RFC_Pro_Installer {
     }
 
     public function ajaxInstallPro() {
-        check_ajax_referer('rfc_nonce', 'nonce');
+        check_ajax_referer('rfc_admin_nonce', 'nonce');
         if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Unauthorized']);
         }
@@ -225,7 +227,7 @@ final class RFC_Pro_Installer {
     }
 
     public function ajaxRemovePro() {
-        check_ajax_referer('rfc_nonce', 'nonce');
+        check_ajax_referer('rfc_admin_nonce', 'nonce');
         if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Unauthorized']);
         }
@@ -236,5 +238,96 @@ final class RFC_Pro_Installer {
         }
 
         wp_send_json_success(['message' => 'Pro features have been removed.', 'reload' => true]);
+    }
+
+    public function ajaxStartTrial() {
+        check_ajax_referer('rfc_admin_nonce', 'nonce');
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'Unauthorized']);
+        }
+
+        $email = sanitize_email($_POST['email'] ?? '');
+        if (empty($email) || !is_email($email)) {
+            wp_send_json_error(['message' => 'Please enter a valid email address.']);
+        }
+
+        $response = wp_remote_post($this->api_base . 'trial/start', [
+            'timeout' => 30,
+            'body'    => wp_json_encode([
+                'email'          => $email,
+                'domain'         => home_url(),
+                'plugin_slug'    => 'rocketfuel-cache',
+                'plugin_version' => RFC_VERSION,
+            ]),
+            'headers' => [
+                'Content-Type' => 'application/json',
+                'X-Plugin'     => 'rocketfuel-cache',
+            ],
+        ]);
+
+        if (is_wp_error($response)) {
+            update_option('rfc_trial_email', $email);
+            update_option('rfc_trial_ends_at', time() + (15 * 86400));
+            update_option('rfc_trial_active', true);
+            wp_send_json_success([
+                'message' => 'Trial activated! Pro features will be available once the licensing server is configured.',
+                'reload'  => true,
+            ]);
+            return;
+        }
+
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+
+        if (!empty($body['success'])) {
+            update_option('rfc_trial_email', $email);
+            update_option('rfc_trial_ends_at', $body['trial_ends_at'] ?? time() + (15 * 86400));
+            update_option('rfc_trial_active', true);
+
+            if (!empty($body['download_url'])) {
+                $this->downloadAndInstall($body['download_url']);
+            }
+
+            wp_send_json_success([
+                'message' => 'Trial activated! All Pro features are unlocked for 15 days.',
+                'reload'  => true,
+            ]);
+        } else {
+            wp_send_json_error(['message' => $body['message'] ?? 'Could not start trial. Please try again.']);
+        }
+    }
+
+    public function ajaxActivateLicense() {
+        check_ajax_referer('rfc_admin_nonce', 'nonce');
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'Unauthorized']);
+        }
+
+        $key = sanitize_text_field($_POST['license_key'] ?? '');
+        if (empty($key)) {
+            wp_send_json_error(['message' => 'Please enter a license key.']);
+        }
+
+        $result = $this->installFromLicense($key);
+
+        if (is_wp_error($result)) {
+            update_option('rfc_license_key', $key);
+            update_option('rfc_license_status', 'pending');
+            wp_send_json_success([
+                'message' => 'License key saved. Pro features will activate once the licensing server is configured.',
+                'reload'  => true,
+            ]);
+            return;
+        }
+
+        if ($result === true) {
+            update_option('rfc_license_key', $key);
+            update_option('rfc_license_status', 'active');
+            wp_send_json_success([
+                'message' => 'License activated! Pro features are now available.',
+                'reload'  => true,
+            ]);
+        }
+
+        wp_send_json_error(['message' => 'Activation failed. Please check your license key.']);
     }
 }

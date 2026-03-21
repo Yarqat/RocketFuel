@@ -127,7 +127,7 @@ final class RFC_Crash_Guard {
     }
 
     public function testFeatureBeforeEnable() {
-        check_ajax_referer('rfc_nonce', 'nonce');
+        check_ajax_referer('rfc_admin_nonce', 'nonce');
         if (!current_user_can('manage_options')) {
             wp_send_json_error('Unauthorized');
         }

@@ -162,7 +162,7 @@ final class RFC_Cache_Purge {
     }
 
     public function ajaxPurgeAll() {
-        check_ajax_referer('rfc_nonce', 'nonce');
+        check_ajax_referer('rfc_admin_nonce', 'nonce');
         if (!current_user_can('manage_options')) {
             wp_send_json_error('Unauthorized');
         }
@@ -171,7 +171,7 @@ final class RFC_Cache_Purge {
     }
 
     public function ajaxPurgeUrl() {
-        check_ajax_referer('rfc_nonce', 'nonce');
+        check_ajax_referer('rfc_admin_nonce', 'nonce');
         if (!current_user_can('manage_options')) {
             wp_send_json_error('Unauthorized');
         }
