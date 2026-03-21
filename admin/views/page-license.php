@@ -5,13 +5,38 @@ $license_status = get_option('rfc_license_status', 'none');
 $license_key = get_option('rfc_license_key', '');
 $license_plan = get_option('rfc_license_plan', '');
 $license_expiry = get_option('rfc_license_expiry', 0);
-$trial_end = get_option('rfc_trial_end', 0);
+$trial_end = get_option('rfc_trial_ends_at', 0);
 $trial_email = get_option('rfc_trial_email', '');
+$trial_active = get_option('rfc_trial_active', false);
+$has_pro = RFC_Engine::instance() && RFC_Engine::instance()->hasPro();
+
+if ($trial_active && $license_status === 'none') {
+    $license_status = 'trial';
+}
+if ($trial_active && $trial_end > 0 && $trial_end < time()) {
+    $license_status = 'expired';
+    update_option('rfc_trial_active', false);
+}
 ?>
 
 <div class="rfc-settings-page">
 
-    <?php if ($license_status === 'none') : ?>
+    <?php if ($license_status === 'trial' && !$has_pro) : ?>
+
+        <div class="rfc-card" style="border-left: 3px solid var(--rfc-green, #00e676); padding: 20px;">
+            <h3 style="color: var(--rfc-green, #00e676);">Trial Activated</h3>
+            <?php
+            $days_left = $trial_end > 0 ? max(0, ceil(($trial_end - time()) / 86400)) : 15;
+            ?>
+            <p>Your 15-day trial is active. <strong><?php echo esc_html($days_left); ?> days remaining.</strong></p>
+            <p>Email: <?php echo esc_html($trial_email); ?></p>
+            <p style="margin-top: 12px; padding: 10px; background: rgba(255,179,0,0.1); border-radius: 6px; color: var(--rfc-warning, #ffb300);">
+                Pro features will be fully functional once the Pro module is downloaded from the server.
+                The licensing server at manage.shahfahad.info is being configured.
+            </p>
+        </div>
+
+    <?php elseif ($license_status === 'none') : ?>
 
         <div class="rfc-card rfc-license-activate">
             <h3><?php esc_html_e('Start Your Free 14-Day Trial', 'rocketfuel-cache'); ?></h3>
