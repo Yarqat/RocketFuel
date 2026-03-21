@@ -251,8 +251,13 @@ final class RFC_Pro_Installer {
             wp_send_json_error(['message' => 'Please enter a valid email address.']);
         }
 
+        update_option('rfc_trial_email', $email);
+        update_option('rfc_trial_ends_at', time() + (15 * 86400));
+        update_option('rfc_trial_active', true);
+        update_option('rfc_license_status', 'trial');
+
         $response = wp_remote_post($this->api_base . 'trial/start', [
-            'timeout' => 30,
+            'timeout' => 15,
             'body'    => wp_json_encode([
                 'email'          => $email,
                 'domain'         => home_url(),
@@ -265,35 +270,20 @@ final class RFC_Pro_Installer {
             ],
         ]);
 
-        if (is_wp_error($response)) {
-            update_option('rfc_trial_email', $email);
-            update_option('rfc_trial_ends_at', time() + (15 * 86400));
-            update_option('rfc_trial_active', true);
-            wp_send_json_success([
-                'message' => 'Trial activated! Pro features will be available once the licensing server is configured.',
-                'reload'  => true,
-            ]);
-            return;
-        }
-
-        $body = json_decode(wp_remote_retrieve_body($response), true);
-
-        if (!empty($body['success'])) {
-            update_option('rfc_trial_email', $email);
-            update_option('rfc_trial_ends_at', $body['trial_ends_at'] ?? time() + (15 * 86400));
-            update_option('rfc_trial_active', true);
-
+        if (!is_wp_error($response)) {
+            $body = json_decode(wp_remote_retrieve_body($response), true);
+            if (!empty($body['trial_ends_at'])) {
+                update_option('rfc_trial_ends_at', $body['trial_ends_at']);
+            }
             if (!empty($body['download_url'])) {
                 $this->downloadAndInstall($body['download_url']);
             }
-
-            wp_send_json_success([
-                'message' => 'Trial activated! All Pro features are unlocked for 15 days.',
-                'reload'  => true,
-            ]);
-        } else {
-            wp_send_json_error(['message' => $body['message'] ?? 'Could not start trial. Please try again.']);
         }
+
+        wp_send_json_success([
+            'message' => 'Trial activated! All Pro features are unlocked for 15 days.',
+            'reload'  => true,
+        ]);
     }
 
     public function ajaxActivateLicense() {
